@@ -1,82 +1,171 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Jeu du clic</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #fffbe6;
-            margin-top: 100px;
-        }
+<meta charset="UTF-8">
+<title>Jeu Ultime des Clics</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        h1 {
-            font-size: 28px;
-        }
-
-        #counter {
-            font-size: 40px;
-            margin: 20px;
-        }
-
-        button {
-            font-size: 24px;
-            padding: 15px 30px;
-            cursor: pointer;
-            border-radius: 10px;
-            border: none;
-            background-color: #ffcc00;
-        }
-
-        /* Fond avec emojis quand on gagne */
-        .win {
-            background-image: repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 40px,
-                rgba(255,255,255,0.3) 40px,
-                rgba(255,255,255,0.3) 80px
-            );
-            background-color: #ffe066;
-        }
-
-        .emoji-bg::before {
-            content: "😂 😂 😂 😂 😂 😂 😂 😂 😂 😂";
-            font-size: 40px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            text-align: center;
-            line-height: 100px;
-            opacity: 0.3;
-        }
-    </style>
+<style>
+body{
+    font-family: Arial, sans-serif;
+    text-align:center;
+    margin:30px 10px;
+    background:#fffbe6;
+    transition:background-color .2s;
+}
+h1{font-size:24px}
+#counter{font-size:36px;margin:10px}
+button,input{
+    font-size:18px;
+    padding:10px;
+    margin:5px;
+    border-radius:10px;
+    border:none;
+}
+button{background:#ffcc00}
+.emoji-bg::before{
+    content:"😂 🤣 😂 🤣";
+    position:fixed; inset:0;
+    font-size:40px; opacity:.25; z-index:-1;
+}
+.shake{animation:shake .4s}
+@keyframes shake{
+    0%{transform:translate(0)}
+    25%{transform:translate(-8px)}
+    50%{transform:translate(8px)}
+    75%{transform:translate(-8px)}
+    100%{transform:translate(0)}
+}
+.confetti{
+    position:fixed; top:-10px;
+    width:10px; height:10px;
+    animation:fall 3s linear infinite;
+}
+@keyframes fall{
+    to{transform:translateY(100vh) rotate(360deg)}
+}
+#leaderboard{margin-top:20px}
+.small{font-size:14px;color:#555}
+</style>
 </head>
+
 <body id="body">
 
-    <h1 id="message">Clique 1000 fois pour avoir ta récompense</h1>
+<h1 id="message">Clique autant que tu peux 👀</h1>
 
-    <div id="counter">0 / 1000</div>
+<input id="pseudo" placeholder="Ton pseudo" />
+<br>
 
-    <button onclick="clickButton()">Cliquer</button>
+<div id="counter">0 clics</div>
+<div id="timer">⏱️ Temps : 0 s</div>
 
-    <script>
-        let clicks = 0;
+<button onclick="clickButton()">Cliquer</button>
+<button onclick="toggleMusic()">🎵 Musique</button>
 
-        function clickButton() {
-            clicks++;
-            document.getElementById("counter").textContent = clicks + " / 1000";
+<br><br>
 
-            if (clicks >= 1000) {
-                document.getElementById("message").textContent = "Merci de ta patience 😂";
-                document.getElementById("body").classList.add("win", "emoji-bg");
-            }
-        }
-    </script>
+<input id="secretCode" placeholder="Code secret" />
+<button onclick="useCode()">Utiliser</button>
+
+<p class="small">Exemple : 6767, TENNIS, CHAOS…</p>
+
+<div id="leaderboard"></div>
+
+<audio id="clickSound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
+<audio id="screamerSound" src="https://assets.mixkit.co/sfx/preview/mixkit-horror-screech-285.mp3"></audio>
+<audio id="music" loop src="https://assets.mixkit.co/music/preview/mixkit-game-level-music-689.mp3"></audio>
+
+<script>
+let clicks = Number(localStorage.getItem("clicks")) || 0;
+let usedCodes = JSON.parse(localStorage.getItem("codes")) || [];
+let chaos = false;
+let startTime = Number(localStorage.getItem("startTime")) || null;
+let timerInterval = null;
+
+const counter = document.getElementById("counter");
+const timer = document.getElementById("timer");
+counter.textContent = clicks + " clics";
+
+function randColor(){
+    return `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
+}
+
+function startTimer(){
+    startTime = Date.now();
+    localStorage.setItem("startTime",startTime);
+    timerInterval=setInterval(()=>{
+        timer.textContent="⏱️ Temps : "+Math.floor((Date.now()-startTime)/1000)+" s";
+    },1000);
+}
+
+function confetti(){
+    for(let i=0;i<60;i++){
+        const c=document.createElement("div");
+        c.className="confetti";
+        c.style.left=Math.random()*100+"vw";
+        c.style.background=randColor();
+        document.body.appendChild(c);
+    }
+}
+
+function toggleMusic(){
+    const m=document.getElementById("music");
+    m.paused?m.play():m.pause();
+}
+
+function useCode(){
+    const code=document.getElementById("secretCode").value.toUpperCase();
+    if(usedCodes.includes(code)) return alert("❌ Code déjà utilisé");
+
+    if(code==="6767"){clicks+=100;}
+    else if(code==="TENNIS"){clicks+=250;}
+    else if(code==="LEGEND"){clicks+=500;}
+    else if(code==="CHAOS"){chaos=true;}
+    else if(code==="RESET"){clicks=0;}
+    else return alert("❌ Code invalide");
+
+    usedCodes.push(code);
+    localStorage.setItem("codes",JSON.stringify(usedCodes));
+    save();
+    alert("✅ Code activé !");
+}
+
+function save(){
+    localStorage.setItem("clicks",clicks);
+    counter.textContent=clicks+" clics";
+}
+
+function clickButton(){
+    if(clicks===0) startTimer();
+    clicks++;
+    save();
+
+    document.body.style.backgroundColor=randColor();
+    document.getElementById("clickSound").play();
+
+    if(chaos) document.body.style.backgroundColor=randColor();
+
+    if(clicks===657){
+        document.getElementById("screamerSound").play();
+        document.body.classList.add("shake");
+        setTimeout(()=>document.body.classList.remove("shake"),400);
+    }
+
+    if(clicks===777) alert("🕵️ Fin secrète !");
+    if(clicks===1337) alert("😈 Fin hacker !");
+    if(clicks===1000){
+        document.body.classList.add("emoji-bg");
+        confetti();
+        alert("🎉 Merci de ta patience 😂");
+    }
+    if(clicks===2000){
+        document.getElementById("message").textContent="🎾 passion du créateur : TENNIS";
+        confetti();
+    }
+}
+
+if(startTime) startTimer();
+</script>
 
 </body>
 </html>
