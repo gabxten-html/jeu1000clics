@@ -3,304 +3,254 @@
 <head>
 <meta charset="UTF-8">
 <title>CLICK ABYSS</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-:root{--green:#00ff88}
+:root{
+  --green:#00ff88;
+  --gold:#ffd700;
+  --bg:#000;
+}
+
 *{box-sizing:border-box}
 
 body{
   margin:0;
-  font-family:Segoe UI,Arial;
+  font-family:monospace;
   background:black;
-  color:white;
+  color:var(--green);
   overflow:hidden;
 }
 
-/* ===== MATRIX ===== */
-#matrix{position:fixed;inset:0;z-index:0}
-
-/* ===== HEADER ===== */
-header{text-align:center;padding:15px;z-index:2;position:relative}
-h1{margin:0;font-size:38px}
-
-/* ===== MAIN ===== */
-#container{
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  height:calc(100vh - 100px);
+header{
+  text-align:center;
+  padding:15px;
   position:relative;
   z-index:2;
 }
 
-#panel{
-  background:rgba(0,0,0,.65);
-  padding:28px;
-  border-radius:18px;
-  width:380px;
-  text-align:center;
-  box-shadow:0 0 40px rgba(0,255,136,.35);
-  backdrop-filter: blur(6px);
+h1{margin:0}
+
+#eventBanner{
+  color:var(--gold);
+  font-weight:bold;
+  margin-top:5px;
 }
 
-button,input{
-  padding:14px;
-  font-size:16px;
-  border-radius:10px;
-  border:none;
-  width:100%;
-  margin:6px 0;
+#ui{
+  position:relative;
+  z-index:2;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:70vh;
+}
+
+#panel{
+  background:rgba(0,0,0,.75);
+  padding:25px;
+  border-radius:14px;
+  width:320px;
+  text-align:center;
+  border:1px solid var(--green);
 }
 
 button{
+  width:100%;
+  padding:12px;
+  margin:6px 0;
+  font-size:16px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
   background:var(--green);
   color:black;
-  cursor:pointer;
 }
 
-#clicks{font-size:34px;margin:14px 0}
-#timer{opacity:.8}
-#msg{min-height:24px;margin-top:10px}
+button:hover{transform:scale(1.05)}
 
-/* ===== ADMIN PANEL ===== */
-#adminPanel{
-  position:fixed;
-  top:0;
-  right:-320px;
-  width:300px;
-  height:100%;
-  background:#050505;
-  border-left:2px solid var(--green);
-  padding:20px;
-  overflow-y:auto;
-  z-index:4;
-  transition:.3s;
+#clicks{
+  font-size:32px;
+  margin:10px 0;
 }
 
-#adminPanel.open{right:0}
-#adminPanel h2{color:var(--green);margin-top:0}
-
-/* ===== BOSS ===== */
-#boss{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:black;
-  color:var(--green);
-  z-index:10;
-  font-family:monospace;
-  padding:40px;
+#multiplier{
+  opacity:.8;
 }
 
-.bossBtn{
-  margin-top:20px;
-  font-size:20px;
-}
-
-/* ===== MOBILE ===== */
-#mobileToggle{
+#bgMenu{
   position:fixed;
   right:10px;
-  bottom:10px;
-  background:#111;
-  color:var(--green);
+  top:50%;
+  transform:translateY(-50%);
+  background:rgba(0,0,0,.85);
+  border:1px solid var(--green);
   padding:10px;
   border-radius:12px;
-  cursor:pointer;
-  z-index:5;
+  z-index:3;
 }
 
-.mobile button{font-size:20px;padding:20px}
+#bgMenu h3{
+  margin:0 0 8px;
+  font-size:14px;
+  text-align:center;
+}
+
+.bgBtn{
+  font-size:13px;
+  margin-bottom:5px;
+}
+
+canvas{
+  position:fixed;
+  inset:0;
+  z-index:0;
+}
 </style>
 </head>
 
 <body>
 
-<canvas id="matrix"></canvas>
+<canvas id="bg"></canvas>
 
 <header>
   <h1>🖱️ CLICK ABYSS</h1>
+  <div id="eventBanner"></div>
 </header>
 
-<div id="container">
+<div id="ui">
   <div id="panel">
-    <div id="timer">⏱️ Temps : 0s</div>
     <div id="clicks">0 clics</div>
-
+    <div id="multiplier">Multiplicateur x1</div>
     <button id="clickBtn">CLIQUER</button>
-    <button onclick="startBlitz()">⚡ Blitz</button>
-
-    <div id="msg"></div>
-
-    <input id="codeInput" placeholder="Code admin">
-    <button onclick="unlockAdmin()">OK</button>
   </div>
 </div>
 
-<div id="adminPanel">
-  <h2>ADMIN PANEL</h2>
-  <button onclick="addClicks(100)">+100 clics</button>
-  <button onclick="addClicks(10000)">+10 000 clics</button>
-  <button onclick="toggleAuto()">🤖 Auto-click</button>
-  <input id="newPass" placeholder="Nouveau mot de passe">
-  <button onclick="changePass()">🔐 Changer mot de passe</button>
+<div id="bgMenu">
+  <h3>🎨 FONDS</h3>
+  <div id="bgButtons"></div>
 </div>
 
-<div id="boss"></div>
-
-<div id="mobileToggle" onclick="toggleMobile()">📱 JE SUIS MOBILE</div>
-
 <script>
-// ====== ETAT ======
-let clicks=0;
-let standardTime=0;
-let blitz=false,blitzScore=0,baseClicks=0;
-let auto=false,autoI=null;
-let adminPass="516962";
+/* ================= ÉTAT ================= */
+let clicks = 0;
+let multiplier = 1;
+let kingsEvent = false;
 
-// ====== TIMER ======
-setInterval(()=>{
-  if(!blitz){
-    standardTime++;
-    timer.innerText="⏱️ Temps : "+standardTime+"s";
-  }
-},1000);
+let ownedBackgrounds = JSON.parse(localStorage.getItem("bgs")) || ["matrix"];
+let currentBg = localStorage.getItem("currentBg") || "matrix";
 
-// ====== CLICK ======
-clickBtn.onclick=()=>{
-  if(blitz){
-    blitzScore++;
-    clicksEl.innerText=blitzScore+" (BLITZ)";
-  }else{
-    clicks++;
-    clicksEl.innerText=clicks+" clics";
-    if(clicks>=10_000_000) startBoss();
-  }
+/* ================= UI ================= */
+const clicksEl=document.getElementById("clicks");
+const multEl=document.getElementById("multiplier");
+const banner=document.getElementById("eventBanner");
+const bgButtons=document.getElementById("bgButtons");
+
+/* ================= CLICK ================= */
+document.getElementById("clickBtn").onclick=()=>{
+  clicks += multiplier;
+  updateUI();
 };
 
-const clicksEl=document.getElementById("clicks");
-
-// ====== BLITZ ======
-function startBlitz(){
-  if(blitz) return;
-  blitz=true;
-  baseClicks=clicks;
-  blitzScore=0;
-  let t=60;
-  clicksEl.innerText="0 (BLITZ)";
-
-  const i=setInterval(()=>{
-    t--;
-    timer.innerText="⚡ Blitz : "+t+"s";
-    if(t<=0){
-      clearInterval(i);
-      blitz=false;
-      msg.innerText="⚡ Blitz : "+blitzScore;
-      setTimeout(()=>{
-        clicks=baseClicks;
-        clicksEl.innerText=clicks+" clics";
-      },2000);
-    }
-  },1000);
+/* ================= UPDATE ================= */
+function updateUI(){
+  clicksEl.innerText = clicks.toLocaleString()+" clics";
+  multEl.innerText = "Multiplicateur x"+multiplier;
 }
 
-// ====== ADMIN ======
-function unlockAdmin(){
-  if(codeInput.value===adminPass){
-    adminPanel.classList.add("open");
-    msg.innerText="🛠️ ADMIN ACTIVÉ";
+/* ================= EVENT KINGS ================= */
+function checkKingsEvent(){
+  const d=new Date();
+  if(d.getHours()===18 && d.getMinutes()===15){
+    startKingsEvent();
   }
 }
-function addClicks(n){clicks+=n;clicksEl.innerText=clicks+" clics"}
-function toggleAuto(){
-  auto=!auto;
-  if(auto) autoI=setInterval(()=>clickBtn.click(),40);
-  else clearInterval(autoI);
-}
-function changePass(){
-  if(newPass.value){
-    adminPass=newPass.value;
-    alert("Mot de passe modifié");
+setInterval(checkKingsEvent,10000);
+
+function startKingsEvent(){
+  if(kingsEvent) return;
+  kingsEvent=true;
+  multiplier=20;
+  banner.innerText="👑 KINGS EVENT ACTIF 👑";
+  currentBg="kings";
+
+  if(Math.random()<0.25 && !ownedBackgrounds.includes("kings")){
+    ownedBackgrounds.push("kings");
+    localStorage.setItem("bgs",JSON.stringify(ownedBackgrounds));
+    alert("👑 TU AS DÉBLOQUÉ LE FOND DES ROIS !");
   }
+  renderBgButtons();
 }
 
-// ====== BOSS FINAL ======
-let bossPhase=0,bossHP=0;
-
-function startBoss(){
-  clickBtn.disabled=true;
-  boss.style.display="block";
-  boss.innerHTML=`
-    <p>VIRUS DETECTED...</p>
-    <p>SYSTEM FAILURE</p>
-    <p>MEMORY CORRUPTED</p>
-  `;
-  setTimeout(()=>startBossFight(),4000);
-}
-
-function startBossFight(){
-  bossPhase=1;
-  bossHP=10000;
-  boss.innerHTML=`
-    <h1>LE MATRIXEUR</h1>
-    <p>PHASE 1 : ${bossHP}</p>
-    <button class="bossBtn" onclick="hitBoss()">ATTAQUER</button>
-  `;
-}
-
-function hitBoss(){
-  if(clicks<=0) return;
-  clicks--;
-  bossHP--;
-  clicksEl.innerText=clicks+" clics";
-
-  if(bossHP<=0){
-    if(bossPhase===1){
-      bossPhase=2;
-      bossHP=30000;
-      boss.innerHTML=`
-        <h1>MATRIXEUR ULTIME</h1>
-        <p>PHASE 2 : ${bossHP}</p>
-        <button class="bossBtn" onclick="hitBoss()">ATTAQUER</button>
-      `;
-    }else endGame();
-  }else{
-    boss.querySelector("p").innerText="HP : "+bossHP;
-  }
-}
-
-function endGame(){
-  boss.innerHTML=`
-    <h1>MATRICE DÉTRUITE</h1>
-    <p>Félicitations.</p>
-    <a href="#" style="color:#00ff88;font-size:20px">➡ Prochain jeu</a>
-  `;
-}
-
-// ====== MOBILE ======
-function toggleMobile(){
-  document.body.classList.toggle("mobile");
-}
-
-// ====== MATRIX ======
-const canvas=matrix,ctx=canvas.getContext("2d");
-function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
-resize();addEventListener("resize",resize);
-const chars="01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%";
-const size=16;
-let cols=Math.floor(canvas.width/size);
-let drops=Array(cols).fill(1);
-setInterval(()=>{
-  ctx.fillStyle="rgba(0,0,0,.05)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="#00ff88";
-  ctx.font=size+"px monospace";
-  drops.forEach((y,i)=>{
-    ctx.fillText(chars[Math.random()*chars.length|0],i*size,y*size);
-    if(y*size>canvas.height&&Math.random()>.98)drops[i]=0;
-    drops[i]++;
+/* ================= BACKGROUNDS ================= */
+function renderBgButtons(){
+  bgButtons.innerHTML="";
+  ownedBackgrounds.forEach(bg=>{
+    const b=document.createElement("button");
+    b.className="bgBtn";
+    b.innerText=bg.toUpperCase();
+    b.onclick=()=>{
+      currentBg=bg;
+      localStorage.setItem("currentBg",bg);
+    };
+    bgButtons.appendChild(b);
   });
-},33);
+}
+renderBgButtons();
+
+/* ================= CANVAS ================= */
+const canvas=document.getElementById("bg");
+const ctx=canvas.getContext("2d");
+resize();
+window.onresize=resize;
+
+function resize(){
+  canvas.width=innerWidth;
+  canvas.height=innerHeight;
+}
+
+const fontSize=18;
+let columns;
+let drops;
+
+function initMatrix(){
+  columns=Math.floor(canvas.width/fontSize);
+  drops=Array(columns).fill(1);
+}
+initMatrix();
+
+function drawMatrix(){
+  ctx.fillStyle="rgba(0,0,0,0.05)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.font=fontSize+"px monospace";
+
+  for(let i=0;i<drops.length;i++){
+    let char, color;
+    if(currentBg==="kings"){
+      char="👑";
+      color="#ffd700";
+    }else{
+      char="01";
+      color="#00ff88";
+    }
+    ctx.fillStyle=color;
+    ctx.fillText(
+      char[Math.floor(Math.random()*char.length)],
+      i*fontSize,
+      drops[i]*fontSize
+    );
+    if(drops[i]*fontSize>canvas.height && Math.random()>0.975){
+      drops[i]=0;
+    }
+    drops[i]++;
+  }
+}
+
+setInterval(drawMatrix,33);
+
+/* ================= INIT ================= */
+updateUI();
 </script>
 
 </body>
