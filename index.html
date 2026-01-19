@@ -2,169 +2,252 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Jeu Ultime des Clics</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<title>Click Abyss</title>
 <style>
-body{
-    font-family: Arial, sans-serif;
-    text-align:center;
-    margin:30px 10px;
-    background:#fffbe6;
-    transition:background-color .2s;
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #111;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  transition: background 0.2s;
+  overflow: hidden;
 }
-h1{font-size:24px}
-#counter{font-size:36px;margin:10px}
-button,input{
-    font-size:18px;
-    padding:10px;
-    margin:5px;
-    border-radius:10px;
-    border:none;
+#game { text-align: center; z-index: 1; }
+button {
+  font-size: 26px;
+  padding: 20px 50px;
+  cursor: pointer;
 }
-button{background:#ffcc00}
-.emoji-bg::before{
-    content:"😂 🤣 😂 🤣";
-    position:fixed; inset:0;
-    font-size:40px; opacity:.25; z-index:-1;
+#count {
+  font-size: 36px;
+  margin: 20px 0;
 }
-.shake{animation:shake .4s}
-@keyframes shake{
-    0%{transform:translate(0)}
-    25%{transform:translate(-8px)}
-    50%{transform:translate(8px)}
-    75%{transform:translate(-8px)}
-    100%{transform:translate(0)}
+#msg { min-height: 30px; margin-top: 10px; }
+input { padding: 6px; margin-top: 8px; }
+
+#badge {
+  margin-top: 10px;
+  font-size: 20px;
+  color: gold;
 }
-.confetti{
-    position:fixed; top:-10px;
-    width:10px; height:10px;
-    animation:fall 3s linear infinite;
+
+#matrix {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
 }
-@keyframes fall{
-    to{transform:translateY(100vh) rotate(360deg)}
-}
-#leaderboard{margin-top:20px}
-.small{font-size:14px;color:#555}
 </style>
 </head>
+<body>
 
-<body id="body">
+<canvas id="matrix"></canvas>
 
-<h1 id="message">Clique autant que tu peux 👀</h1>
+<div id="game">
+  <h1>🖱️ CLICK ABYSS</h1>
 
-<input id="pseudo" placeholder="Ton pseudo" />
-<br>
+  <input id="pseudo" placeholder="Ton pseudo">
+  <div id="badge"></div>
 
-<div id="counter">0 clics</div>
-<div id="timer">⏱️ Temps : 0 s</div>
+  <div id="count">0</div>
+  <button id="clickBtn">CLIQUER</button>
+  <div id="msg"></div>
 
-<button onclick="clickButton()">Cliquer</button>
-<button onclick="toggleMusic()">🎵 Musique</button>
+  <div>
+    <input id="code" placeholder="Code secret">
+    <button onclick="useCode()">OK</button>
+  </div>
 
-<br><br>
+  <div style="margin-top:15px">
+    <button onclick="startBlitz()">⚡ Blitz (1 min)</button>
+  </div>
+</div>
 
-<input id="secretCode" placeholder="Code secret" />
-<button onclick="useCode()">Utiliser</button>
-
-<p class="small">Exemple : 6767, TENNIS, CHAOS…</p>
-
-<div id="leaderboard"></div>
-
-<audio id="clickSound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
-<audio id="screamerSound" src="https://assets.mixkit.co/sfx/preview/mixkit-horror-screech-285.mp3"></audio>
-<audio id="music" loop src="https://assets.mixkit.co/music/preview/mixkit-game-level-music-689.mp3"></audio>
+<audio id="music" loop>
+  <source src="https://cdn.pixabay.com/audio/2022/10/25/audio_946b0bfa63.mp3">
+</audio>
 
 <script>
-let clicks = Number(localStorage.getItem("clicks")) || 0;
-let usedCodes = JSON.parse(localStorage.getItem("codes")) || [];
-let chaos = false;
-let startTime = Number(localStorage.getItem("startTime")) || null;
-let timerInterval = null;
+// ===================== SAUVEGARDE =====================
+let clicks = Number(localStorage.getItem("clicks"));
+if (isNaN(clicks)) clicks = 0;
 
-const counter = document.getElementById("counter");
-const timer = document.getElementById("timer");
-counter.textContent = clicks + " clics";
+let pseudo = localStorage.getItem("pseudo") || "";
+let badge = localStorage.getItem("badge") || "";
+let usedCodes = JSON.parse(localStorage.getItem("usedCodes") || "[]");
 
-function randColor(){
-    return `rgb(${Math.random()*255},${Math.random()*255},${Math.random()*255})`;
+document.getElementById("pseudo").value = pseudo;
+document.getElementById("badge").innerText = badge;
+
+// ===================== ELEMENTS =====================
+const countEl = document.getElementById("count");
+const msg = document.getElementById("msg");
+const btn = document.getElementById("clickBtn");
+const music = document.getElementById("music");
+
+// ===================== STATES =====================
+let started = false;
+let lastThousand = Math.floor(clicks / 1000);
+let trollNegative = false;
+let trollReset = false;
+
+// ===================== UPDATE =====================
+function update() {
+  countEl.innerText = clicks.toLocaleString("fr") + " clics";
+  localStorage.setItem("clicks", clicks);
+
+  if (clicks >= 1_000_000) matrixActive = true;
+
+  if (clicks >= 10_000_000 && badge !== "🏆 PRO CLICKER") {
+    badge = "🏆 PRO CLICKER";
+    localStorage.setItem("badge", badge);
+    document.getElementById("badge").innerText = badge;
+    msg.innerText = "🏆 Félicitations. Tu es PRO CLICKER.";
+  }
+}
+update();
+
+// ===================== PSEUDO =====================
+document.getElementById("pseudo").addEventListener("input", e => {
+  pseudo = e.target.value;
+  localStorage.setItem("pseudo", pseudo);
+});
+
+// ===================== CLIC =====================
+btn.onclick = () => {
+  if (!started) {
+    music.volume = 0.4;
+    music.play();
+    started = true;
+  }
+
+  if (trollReset) {
+    clicks = 0;
+    update();
+    return;
+  }
+
+  clicks += trollNegative ? -30 : 1;
+  if (clicks < 0) clicks = 0;
+  if (clicks > 10_000_000) clicks = 10_000_000;
+
+  document.body.style.background =
+    `hsl(${Math.random()*360},70%,15%)`;
+
+  checkThousand();
+  update();
+};
+
+// ===================== CODES =====================
+const codes = {};
+
+function randomCode() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-function startTimer(){
-    startTime = Date.now();
-    localStorage.setItem("startTime",startTime);
-    timerInterval=setInterval(()=>{
-        timer.textContent="⏱️ Temps : "+Math.floor((Date.now()-startTime)/1000)+" s";
-    },1000);
-}
+function checkThousand() {
+  const current = Math.floor(clicks / 1000);
+  if (current > lastThousand) {
+    lastThousand = current;
 
-function confetti(){
-    for(let i=0;i<60;i++){
-        const c=document.createElement("div");
-        c.className="confetti";
-        c.style.left=Math.random()*100+"vw";
-        c.style.background=randColor();
-        document.body.appendChild(c);
+    const code = randomCode();
+    codes[code] = 100 + Math.floor(Math.random() * 900);
+    msg.innerText = `🔐 Nouveau code : ${code}`;
+
+    if (Math.random() < 0.00000001) {
+      codes["PROGODHACKER020304"] = 1_000_000;
+      msg.innerText = "⚠️ Un code étrange a été généré...";
     }
+  }
 }
 
-function toggleMusic(){
-    const m=document.getElementById("music");
-    m.paused?m.play():m.pause();
+function useCode() {
+  const c = document.getElementById("code").value;
+  if (codes[c] && !usedCodes.includes(c)) {
+    clicks += codes[c];
+    usedCodes.push(c);
+    localStorage.setItem("usedCodes", JSON.stringify(usedCodes));
+    msg.innerText = `🎉 Code valide (+${codes[c].toLocaleString()})`;
+    update();
+  } else {
+    msg.innerText = "❌ Code invalide ou déjà utilisé";
+  }
 }
 
-function useCode(){
-    const code=document.getElementById("secretCode").value.toUpperCase();
-    if(usedCodes.includes(code)) return alert("❌ Code déjà utilisé");
+// ===================== BLITZ =====================
+function startBlitz() {
+  let start = clicks;
+  let time = 60;
+  msg.innerText = "⚡ BLITZ !";
 
-    if(code==="6767"){clicks+=100;}
-    else if(code==="TENNIS"){clicks+=250;}
-    else if(code==="LEGEND"){clicks+=500;}
-    else if(code==="CHAOS"){chaos=true;}
-    else if(code==="RESET"){clicks=0;}
-    else return alert("❌ Code invalide");
-
-    usedCodes.push(code);
-    localStorage.setItem("codes",JSON.stringify(usedCodes));
-    save();
-    alert("✅ Code activé !");
-}
-
-function save(){
-    localStorage.setItem("clicks",clicks);
-    counter.textContent=clicks+" clics";
-}
-
-function clickButton(){
-    if(clicks===0) startTimer();
-    clicks++;
-    save();
-
-    document.body.style.backgroundColor=randColor();
-    document.getElementById("clickSound").play();
-
-    if(chaos) document.body.style.backgroundColor=randColor();
-
-    if(clicks===657){
-        document.getElementById("screamerSound").play();
-        document.body.classList.add("shake");
-        setTimeout(()=>document.body.classList.remove("shake"),400);
+  const interval = setInterval(() => {
+    time--;
+    if (time <= 0) {
+      clearInterval(interval);
+      msg.innerText = `⚡ Blitz terminé : ${clicks - start} clics`;
     }
-
-    if(clicks===777) alert("🕵️ Fin secrète !");
-    if(clicks===1337) alert("😈 Fin hacker !");
-    if(clicks===1000){
-        document.body.classList.add("emoji-bg");
-        confetti();
-        alert("🎉 Merci de ta patience 😂");
-    }
-    if(clicks===2000){
-        document.getElementById("message").textContent="🎾 passion du créateur : TENNIS";
-        confetti();
-    }
+  }, 1000);
 }
 
-if(startTime) startTimer();
+// ===================== TROLL INVISIBLE =====================
+setInterval(() => {
+  if (Math.random() < 0.2) {
+    trollNegative = true;
+    setTimeout(() => trollNegative = false, 60000);
+  }
+
+  if (Math.random() < 0.000005) {
+    trollReset = true;
+    btn.innerText = "RESET";
+    setTimeout(() => {
+      trollReset = false;
+      btn.innerText = "CLIQUER";
+    }, 60000);
+  }
+}, 600000);
+
+// ===================== MATRIX EFFECT =====================
+const matrixCanvas = document.getElementById("matrix");
+const mtx = matrixCanvas.getContext("2d");
+
+matrixCanvas.width = innerWidth;
+matrixCanvas.height = innerHeight;
+
+const letters = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%&@";
+const fontSize = 16;
+const columns = matrixCanvas.width / fontSize;
+const drops = Array(Math.floor(columns)).fill(1);
+
+let matrixActive = false;
+
+function drawMatrix() {
+  if (!matrixActive) return;
+
+  mtx.fillStyle = "rgba(0, 0, 0, 0.05)";
+  mtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+
+  mtx.fillStyle = "#00ff00";
+  mtx.font = fontSize + "px monospace";
+
+  for (let i = 0; i < drops.length; i++) {
+    const text = letters[Math.floor(Math.random() * letters.length)];
+    mtx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+    if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
+      drops[i] = 0;
+    }
+    drops[i]++;
+  }
+}
+
+setInterval(drawMatrix, 33);
 </script>
 
 </body>
