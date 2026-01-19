@@ -5,11 +5,7 @@
 <title>CLICK ABYSS</title>
 
 <style>
-:root{
-  --accent:#00ff88;
-  --danger:#ff5555;
-}
-
+:root{--accent:#00ff88;--danger:#ff5555}
 *{box-sizing:border-box}
 
 body{
@@ -20,13 +16,7 @@ body{
   overflow:hidden;
 }
 
-header{
-  text-align:center;
-  padding:20px;
-  position:relative;
-  z-index:2;
-}
-
+header{text-align:center;padding:20px;z-index:2;position:relative}
 h1{margin:0;font-size:42px}
 
 #container{
@@ -39,7 +29,7 @@ h1{margin:0;font-size:42px}
 }
 
 #panel{
-  background:rgba(0,0,0,.55);
+  background:rgba(0,0,0,.6);
   padding:30px;
   border-radius:18px;
   width:380px;
@@ -74,7 +64,6 @@ button:hover{transform:scale(1.05)}
   margin-top:15px;
   border-top:1px solid rgba(255,255,255,.2);
   padding-top:10px;
-  font-size:14px;
 }
 
 #matrix{
@@ -107,9 +96,11 @@ button:hover{transform:scale(1.05)}
     <input id="codeInput" placeholder="Code secret">
     <button onclick="useCode()">OK</button>
 
+    <!-- ADMIN PANEL -->
     <div class="admin" id="adminPanel">
       <b>ADMIN PANEL</b>
-      <button onclick="toggleAutoClick()">🤖 AUTO CLICKER</button>
+      <button onclick="toggleAutoClick()">🤖 Auto Clicker</button>
+      <button onclick="toggleX100()">💥 1 clic = 100</button>
     </div>
 
   </div>
@@ -121,31 +112,38 @@ let clicks = 0;
 let time = 0;
 let blitz = false;
 let blitzScore = 0;
+
 let autoClick = false;
 let autoClickInterval = null;
+
+let x100 = false;
+
+// ================== ELEMENTS ==================
+const clicksEl = document.getElementById("clicks");
+const timerEl = document.getElementById("timer");
+const msg = document.getElementById("msg");
+const clickBtn = document.getElementById("clickBtn");
 
 // ================== TIMER ==================
 setInterval(()=>{
   time++;
   if(!blitz){
-    timer.innerText = "⏱️ Temps : " + time + "s";
+    timerEl.innerText = "⏱️ Temps : " + time + "s";
   }
 },1000);
 
 // ================== CLICK ==================
 clickBtn.onclick = ()=>{
+  let gain = x100 ? 100 : 1;
+
   if(blitz){
-    blitzScore++;
+    blitzScore += gain;
   }
-  clicks++;
-  clicksEl();
+  clicks += gain;
+
+  clicksEl.innerText = clicks + " clics";
   maybeGiveCode();
 };
-
-function clicksEl(){
-  clicksElDom.innerText = clicks + " clics";
-}
-const clicksElDom = document.getElementById("clicks");
 
 // ================== BLITZ ==================
 function startBlitz(){
@@ -153,11 +151,13 @@ function startBlitz(){
   blitz = true;
   blitzScore = 0;
   let t = 60;
-  timer.innerText = "⚡ Blitz : 60s";
+
+  timerEl.innerText = "⚡ Blitz : 60s";
+  msg.innerText = "⚡ BLITZ EN COURS";
 
   const i = setInterval(()=>{
     t--;
-    timer.innerText = "⚡ Blitz : " + t + "s";
+    timerEl.innerText = "⚡ Blitz : " + t + "s";
     if(t <= 0){
       clearInterval(i);
       blitz = false;
@@ -171,8 +171,8 @@ const codes = {
   "ABYSS10":10,
   "FLOW50":50,
   "HACK100":100,
-  "CLICK200":200,
-  "NEON500":500
+  "NEON500":500,
+  "VOID1000":1000
 };
 
 function maybeGiveCode(){
@@ -198,16 +198,21 @@ function useCode(){
   }
 }
 
-// ================== AUTO CLICK ==================
+// ================== ADMIN CHEATS ==================
 function toggleAutoClick(){
   autoClick = !autoClick;
   if(autoClick){
     autoClickInterval = setInterval(()=>clickBtn.click(),40);
-    msg.innerText = "🤖 AutoClick ON";
+    msg.innerText = "🤖 Auto Clicker ON";
   }else{
     clearInterval(autoClickInterval);
-    msg.innerText = "🤖 AutoClick OFF";
+    msg.innerText = "🤖 Auto Clicker OFF";
   }
+}
+
+function toggleX100(){
+  x100 = !x100;
+  msg.innerText = x100 ? "💥 Mode x100 ACTIVÉ" : "💥 Mode x100 DÉSACTIVÉ";
 }
 
 // ================== MATRIX INFINIE ==================
@@ -241,7 +246,6 @@ function drawMatrix(){
     drops[i]++;
   }
 }
-
 setInterval(drawMatrix,33);
 </script>
 
