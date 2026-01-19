@@ -70,10 +70,6 @@ button{
   font-family:monospace;
 }
 
-#rules button{
-  margin-top:20px;
-}
-
 #mobileToggle{
   position:fixed;
   right:10px;
@@ -90,13 +86,10 @@ button{
 .mobile button{font-size:20px;padding:20px}
 
 #matrix{position:fixed;inset:0;z-index:0}
-.hiddenClick{
-  position:fixed;
-  background:var(--green);
-  color:black;
-  padding:10px;
-  border-radius:8px;
-  z-index:3;
+
+.resetFlash{
+  background:#ff5555 !important;
+  color:white !important;
 }
 </style>
 </head>
@@ -140,32 +133,27 @@ button{
 <div id="mobileToggle" onclick="toggleMobile()">📱 JE SUIS MOBILE</div>
 
 <script>
-// ====== ETAT ======
-let clicks=0,time=0;
+// ========= ETAT =========
+let clicks=0;
+let standardTime=0;
 let blitz=false,blitzScore=0,baseClicks=0;
-let hardcore=false,hardcoreTime=300;
+let hardcore=false;
 let auto=false,x100=false;
 let pendingMode=null;
 
-// ====== TIMER ======
+// ========= TIMER =========
 setInterval(()=>{
-  time++;
-  timer.innerText="⏱️ Temps : "+time+"s";
-  if(hardcore){
-    hardcoreTime--;
-    if(hardcoreTime<=0){
-      hardcore=false;
-      msg.innerText="😈 Hardcore terminé";
-    }
+  if(!blitz){
+    standardTime++;
+    timer.innerText="⏱️ Temps : "+standardTime+"s";
   }
 },1000);
 
-// ====== CLICK ======
+// ========= CLICK =========
 clickBtn.onclick=()=>{
-  if(hardcore && Math.random()<0.4){
-    spawnHiddenClick();
-    clickBtn.innerText="RESET";
-    clickBtn.onclick=()=>location.reload();
+  // HARDCORE RESET (15%)
+  if(hardcore && Math.random()<0.15){
+    triggerResetFlash();
     return;
   }
 
@@ -182,24 +170,36 @@ clickBtn.onclick=()=>{
 
 const clicksEl=document.getElementById("clicks");
 
-// ====== RULES ======
+// ========= RESET FLASH =========
+function triggerResetFlash(){
+  clickBtn.innerText="RESET";
+  clickBtn.classList.add("resetFlash");
+
+  setTimeout(()=>{
+    clickBtn.innerText="CLIQUER";
+    clickBtn.classList.remove("resetFlash");
+  },1500);
+}
+
+// ========= RULES =========
 function showRules(mode){
   pendingMode=mode;
   rules.style.display="block";
-  rulesText.innerText=
+  rulesText.innerText =
     mode==="blitz"
-    ? "MODE BLITZ\n\n1 minute\nScore séparé\nRetour au score initial après"
-    : "MODE HARDCORE\n\n5 minutes\n40% reset\nBouton caché à retrouver";
+    ? "MODE BLITZ\n\n• 1 minute\n• Score séparé\n• Le temps standard est PAUSÉ\n• Retour au score initial"
+    : "MODE HARDCORE\n\n• 15% chance RESET\n• RESET visible 1,5s\n• Aucun reset du score principal";
 }
 
 function startMode(){
   rules.style.display="none";
   if(pendingMode==="blitz") startBlitz();
-  if(pendingMode==="hardcore") startHardcore();
+  if(pendingMode==="hardcore") hardcore=true;
 }
 
-// ====== BLITZ ======
+// ========= BLITZ =========
 function startBlitz(){
+  if(blitz) return;
   blitz=true;
   baseClicks=clicks;
   blitzScore=0;
@@ -221,18 +221,11 @@ function startBlitz(){
   },1000);
 }
 
-// ====== HARDCORE ======
-function startHardcore(){
-  hardcore=true;
-  hardcoreTime=300;
-  msg.innerText="😈 HARDCORE ACTIVÉ";
-}
-
-// ====== ADMIN ======
+// ========= ADMIN =========
 function useCode(){
   if(codeInput.value==="516962"){
     adminPanel.style.display="block";
-    msg.innerText="🛠️ ADMIN";
+    msg.innerText="🛠️ ADMIN ACTIVÉ";
   }
 }
 
@@ -243,27 +236,12 @@ function toggleAuto(){
 
 function toggleX100(){x100=!x100}
 
-// ====== HIDDEN CLICK ======
-function spawnHiddenClick(){
-  const b=document.createElement("button");
-  b.className="hiddenClick";
-  b.style.left=Math.random()*90+"%";
-  b.style.top=Math.random()*90+"%";
-  b.innerText="CLIQUER";
-  b.onclick=()=>{
-    b.remove();
-    clickBtn.innerText="CLIQUER";
-    clickBtn.onclick=()=>clickBtn.click();
-  };
-  document.body.appendChild(b);
-}
-
-// ====== MOBILE ======
+// ========= MOBILE =========
 function toggleMobile(){
   document.body.classList.toggle("mobile");
 }
 
-// ====== MATRIX ======
+// ========= MATRIX =========
 const canvas=matrix,ctx=canvas.getContext("2d");
 function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
 resize();addEventListener("resize",resize);
@@ -271,6 +249,7 @@ const chars="01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%";
 const size=16;
 let cols=Math.floor(canvas.width/size);
 let drops=Array(cols).fill(1);
+
 setInterval(()=>{
   ctx.fillStyle="rgba(0,0,0,.05)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
