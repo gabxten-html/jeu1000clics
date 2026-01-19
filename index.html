@@ -2,71 +2,158 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>Click Abyss</title>
+<title>CLICK ABYSS</title>
+
 <style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #111;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  transition: background 0.2s;
-  overflow: hidden;
-}
-#game { text-align: center; z-index: 1; }
-button {
-  font-size: 26px;
-  padding: 20px 50px;
-  cursor: pointer;
-}
-#count {
-  font-size: 36px;
-  margin: 20px 0;
-}
-#msg { min-height: 30px; margin-top: 10px; }
-input { padding: 6px; margin-top: 8px; }
-
-#badge {
-  margin-top: 10px;
-  font-size: 20px;
-  color: gold;
+:root {
+  --bg1:#0f2027;
+  --bg2:#203a43;
+  --bg3:#2c5364;
+  --accent:#00ff88;
+  --danger:#ff5555;
 }
 
-#matrix {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 0;
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Segoe UI,Arial;
+  background:linear-gradient(120deg,var(--bg1),var(--bg2),var(--bg3));
+  color:white;
+  min-height:100vh;
+  overflow:hidden;
 }
+
+header{
+  text-align:center;
+  padding:20px;
+}
+
+h1{margin:0;font-size:42px}
+
+#badge{color:gold;margin-top:5px}
+
+#container{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:calc(100vh - 140px);
+}
+
+#panel{
+  background:rgba(0,0,0,0.45);
+  padding:30px;
+  border-radius:16px;
+  width:380px;
+  text-align:center;
+  box-shadow:0 0 40px rgba(0,255,136,0.2);
+}
+
+input,button{
+  padding:12px;
+  font-size:16px;
+  border-radius:8px;
+  border:none;
+}
+
+button{
+  cursor:pointer;
+  background:var(--accent);
+  color:black;
+  margin:8px 0;
+  width:100%;
+  transition:.2s;
+}
+button:hover{transform:scale(1.05)}
+
+#clicks{font-size:34px;margin:15px 0}
+#timer{opacity:.8;margin-bottom:10px}
+#msg{min-height:24px;margin-top:10px}
+
+.small{
+  font-size:13px;
+  opacity:.7;
+}
+
+.admin{
+  display:none;
+  margin-top:15px;
+  border-top:1px solid rgba(255,255,255,.2);
+  padding-top:10px;
+}
+
+#matrix{
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+}
+
+/* ================= MOBILE TOGGLE ================= */
+#mobileToggle{
+  position:fixed;
+  right:10px;
+  top:40%;
+  background:#00ff88;
+  color:black;
+  font-weight:bold;
+  padding:12px;
+  border-radius:14px;
+  cursor:pointer;
+  text-align:center;
+  font-size:12px;
+  z-index:9999;
+  box-shadow:0 0 20px rgba(0,0,0,.4);
+}
+
+/* ================= MODE MOBILE ================= */
+body.mobile-mode h1{font-size:32px}
+body.mobile-mode #panel{width:95%}
+body.mobile-mode button{
+  padding:22px;
+  font-size:22px;
+}
+body.mobile-mode input{
+  font-size:18px;
+  padding:16px;
+}
+body.mobile-mode #clicks{font-size:42px}
 </style>
 </head>
+
 <body>
 
 <canvas id="matrix"></canvas>
 
-<div id="game">
+<div id="mobileToggle">📱<br>JE SUIS<br>MOBILE</div>
+
+<header>
   <h1>🖱️ CLICK ABYSS</h1>
-
-  <input id="pseudo" placeholder="Ton pseudo">
+  <input id="pseudo" placeholder="Pseudo">
   <div id="badge"></div>
+</header>
 
-  <div id="count">0</div>
-  <button id="clickBtn">CLIQUER</button>
-  <div id="msg"></div>
+<div id="container">
+  <div id="panel">
 
-  <div>
-    <input id="code" placeholder="Code secret">
-    <button onclick="useCode()">OK</button>
-  </div>
+    <div id="timer">⏱️ Temps total : 0s</div>
+    <div id="clicks">0 clics</div>
 
-  <div style="margin-top:15px">
+    <button id="clickBtn">CLIQUER</button>
     <button onclick="startBlitz()">⚡ Blitz (1 min)</button>
+    <button onclick="resetGame()" style="background:var(--danger)">RESET</button>
+
+    <div id="msg"></div>
+
+    <input id="codeInput" placeholder="Code secret">
+    <button onclick="useCode()">OK</button>
+
+    <div class="admin" id="adminPanel">
+      <div class="small">ADMIN PANEL</div>
+      <button onclick="clicks+=10000;update()">+10 000 clics</button>
+      <button onclick="clicks+=100000;update()">+100 000 clics</button>
+    </div>
+
   </div>
 </div>
 
@@ -75,179 +162,132 @@ input { padding: 6px; margin-top: 8px; }
 </audio>
 
 <script>
-// ===================== SAUVEGARDE =====================
-let clicks = Number(localStorage.getItem("clicks"));
-if (isNaN(clicks)) clicks = 0;
-
+// ===================== ETAT =====================
+let clicks = +localStorage.getItem("clicks") || 0;
 let pseudo = localStorage.getItem("pseudo") || "";
 let badge = localStorage.getItem("badge") || "";
-let usedCodes = JSON.parse(localStorage.getItem("usedCodes") || "[]");
+let startTime = +localStorage.getItem("startTime") || Date.now();
 
-document.getElementById("pseudo").value = pseudo;
-document.getElementById("badge").innerText = badge;
+let blitz=false, blitzScore=0, blitzTimer=60, savedClicksBeforeBlitz=0;
 
 // ===================== ELEMENTS =====================
-const countEl = document.getElementById("count");
-const msg = document.getElementById("msg");
-const btn = document.getElementById("clickBtn");
-const music = document.getElementById("music");
+const clickEl=document.getElementById("clicks");
+const timerEl=document.getElementById("timer");
+const msg=document.getElementById("msg");
+const badgeEl=document.getElementById("badge");
+const music=document.getElementById("music");
 
-// ===================== STATES =====================
-let started = false;
-let lastThousand = Math.floor(clicks / 1000);
-let trollNegative = false;
-let trollReset = false;
+document.getElementById("pseudo").value=pseudo;
+badgeEl.innerText=badge;
+
+// ===================== TIMER =====================
+setInterval(()=>{
+  if(!blitz){
+    timerEl.innerText="⏱️ Temps total : "+Math.floor((Date.now()-startTime)/1000)+"s";
+  }
+},1000);
 
 // ===================== UPDATE =====================
-function update() {
-  countEl.innerText = clicks.toLocaleString("fr") + " clics";
-  localStorage.setItem("clicks", clicks);
+function update(){
+  clickEl.innerText=clicks.toLocaleString()+" clics";
+  localStorage.setItem("clicks",clicks);
 
-  if (clicks >= 1_000_000) matrixActive = true;
-
-  if (clicks >= 10_000_000 && badge !== "🏆 PRO CLICKER") {
-    badge = "🏆 PRO CLICKER";
-    localStorage.setItem("badge", badge);
-    document.getElementById("badge").innerText = badge;
-    msg.innerText = "🏆 Félicitations. Tu es PRO CLICKER.";
+  if(clicks>=1_000_000) matrixActive=true;
+  if(clicks>=10_000_000 && badge!=="🏆 PRO CLICKER"){
+    badge="🏆 PRO CLICKER";
+    badgeEl.innerText=badge;
+    localStorage.setItem("badge",badge);
   }
 }
 update();
 
-// ===================== PSEUDO =====================
-document.getElementById("pseudo").addEventListener("input", e => {
-  pseudo = e.target.value;
-  localStorage.setItem("pseudo", pseudo);
-});
-
 // ===================== CLIC =====================
-btn.onclick = () => {
-  if (!started) {
-    music.volume = 0.4;
-    music.play();
-    started = true;
-  }
-
-  if (trollReset) {
-    clicks = 0;
+clickBtn.onclick=()=>{
+  music.play();
+  if(blitz){
+    blitzScore++;
+    clickEl.innerText=blitzScore+" clics (BLITZ)";
+  }else{
+    clicks++;
     update();
-    return;
   }
-
-  clicks += trollNegative ? -30 : 1;
-  if (clicks < 0) clicks = 0;
-  if (clicks > 10_000_000) clicks = 10_000_000;
-
-  document.body.style.background =
-    `hsl(${Math.random()*360},70%,15%)`;
-
-  checkThousand();
-  update();
 };
 
-// ===================== CODES =====================
-const codes = {};
-
-function randomCode() {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
-}
-
-function checkThousand() {
-  const current = Math.floor(clicks / 1000);
-  if (current > lastThousand) {
-    lastThousand = current;
-
-    const code = randomCode();
-    codes[code] = 100 + Math.floor(Math.random() * 900);
-    msg.innerText = `🔐 Nouveau code : ${code}`;
-
-    if (Math.random() < 0.00000001) {
-      codes["PROGODHACKER020304"] = 1_000_000;
-      msg.innerText = "⚠️ Un code étrange a été généré...";
-    }
-  }
-}
-
-function useCode() {
-  const c = document.getElementById("code").value;
-  if (codes[c] && !usedCodes.includes(c)) {
-    clicks += codes[c];
-    usedCodes.push(c);
-    localStorage.setItem("usedCodes", JSON.stringify(usedCodes));
-    msg.innerText = `🎉 Code valide (+${codes[c].toLocaleString()})`;
-    update();
-  } else {
-    msg.innerText = "❌ Code invalide ou déjà utilisé";
+// ===================== RESET =====================
+function resetGame(){
+  if(confirm("Reset total ?")){
+    localStorage.clear();
+    location.reload();
   }
 }
 
 // ===================== BLITZ =====================
-function startBlitz() {
-  let start = clicks;
-  let time = 60;
-  msg.innerText = "⚡ BLITZ !";
+function startBlitz(){
+  if(blitz) return;
+  blitz=true;
+  savedClicksBeforeBlitz=clicks;
+  blitzScore=0;
+  blitzTimer=60;
+  msg.innerText="⚡ BLITZ EN COURS";
 
-  const interval = setInterval(() => {
-    time--;
-    if (time <= 0) {
-      clearInterval(interval);
-      msg.innerText = `⚡ Blitz terminé : ${clicks - start} clics`;
+  const i=setInterval(()=>{
+    blitzTimer--;
+    timerEl.innerText="⚡ Blitz : "+blitzTimer+"s";
+    if(blitzTimer<=0){
+      clearInterval(i);
+      blitz=false;
+      clicks=savedClicksBeforeBlitz;
+      msg.innerText="⚡ Blitz terminé : "+blitzScore+" clics";
+      update();
     }
-  }, 1000);
+  },1000);
 }
 
-// ===================== TROLL INVISIBLE =====================
-setInterval(() => {
-  if (Math.random() < 0.2) {
-    trollNegative = true;
-    setTimeout(() => trollNegative = false, 60000);
-  }
+// ===================== ADMIN =====================
+function useCode(){
+  if(codeInput.value==="516962"){
+    adminPanel.style.display="block";
+    msg.innerText="🛠️ Mode admin activé";
+  }else msg.innerText="❌ Code invalide";
+}
 
-  if (Math.random() < 0.000005) {
-    trollReset = true;
-    btn.innerText = "RESET";
-    setTimeout(() => {
-      trollReset = false;
-      btn.innerText = "CLIQUER";
-    }, 60000);
-  }
-}, 600000);
+// ===================== MATRIX =====================
+const canvas=matrix;
+const ctx=canvas.getContext("2d");
+canvas.width=innerWidth;canvas.height=innerHeight;
+const letters="01ABCDEF#$%";
+const font=16;
+const cols=canvas.width/font;
+const drops=Array(cols).fill(1);
+let matrixActive=false;
 
-// ===================== MATRIX EFFECT =====================
-const matrixCanvas = document.getElementById("matrix");
-const mtx = matrixCanvas.getContext("2d");
-
-matrixCanvas.width = innerWidth;
-matrixCanvas.height = innerHeight;
-
-const letters = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%&@";
-const fontSize = 16;
-const columns = matrixCanvas.width / fontSize;
-const drops = Array(Math.floor(columns)).fill(1);
-
-let matrixActive = false;
-
-function drawMatrix() {
-  if (!matrixActive) return;
-
-  mtx.fillStyle = "rgba(0, 0, 0, 0.05)";
-  mtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
-
-  mtx.fillStyle = "#00ff00";
-  mtx.font = fontSize + "px monospace";
-
-  for (let i = 0; i < drops.length; i++) {
-    const text = letters[Math.floor(Math.random() * letters.length)];
-    mtx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-    if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.975) {
-      drops[i] = 0;
-    }
+setInterval(()=>{
+  if(!matrixActive)return;
+  ctx.fillStyle="rgba(0,0,0,.05)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#00ff88";
+  ctx.font=font+"px monospace";
+  drops.forEach((y,i)=>{
+    ctx.fillText(letters[Math.random()*letters.length|0],i*font,y*font);
+    if(y*font>canvas.height && Math.random()>.98)drops[i]=0;
     drops[i]++;
-  }
-}
+  });
+},33);
 
-setInterval(drawMatrix, 33);
+// ===================== MOBILE TOGGLE =====================
+const mobileToggle=document.getElementById("mobileToggle");
+mobileToggle.onclick=()=>{
+  document.body.classList.toggle("mobile-mode");
+  mobileToggle.innerHTML=document.body.classList.contains("mobile-mode")
+    ?"💻<br>MODE<br>PC":"📱<br>JE SUIS<br>MOBILE";
+  navigator.vibrate?.(50);
+};
+
+// auto-detect mobile
+if(/Mobi|Android|iPhone/i.test(navigator.userAgent)){
+  document.body.classList.add("mobile-mode");
+  mobileToggle.innerHTML="💻<br>MODE<br>PC";
+}
 </script>
 
 </body>
