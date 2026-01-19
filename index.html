@@ -5,7 +5,7 @@
 <title>CLICK ABYSS</title>
 
 <style>
-:root{--accent:#00ff88}
+:root{--green:#00ff88}
 *{box-sizing:border-box}
 
 body{
@@ -16,21 +16,21 @@ body{
   overflow:hidden;
 }
 
-header{text-align:center;padding:20px;z-index:2;position:relative}
-h1{margin:0;font-size:42px}
+header{text-align:center;padding:15px;z-index:2;position:relative}
+h1{margin:0;font-size:38px}
 
 #container{
   display:flex;
   justify-content:center;
   align-items:center;
-  height:calc(100vh - 120px);
+  height:calc(100vh - 100px);
   position:relative;
   z-index:2;
 }
 
 #panel{
-  background:rgba(0,0,0,.6);
-  padding:30px;
+  background:rgba(0,0,0,.65);
+  padding:28px;
   border-radius:18px;
   width:380px;
   text-align:center;
@@ -48,30 +48,56 @@ button,input{
 }
 
 button{
-  background:var(--accent);
+  background:var(--green);
   color:black;
   cursor:pointer;
 }
-button:hover{transform:scale(1.05)}
 
-#clicks{font-size:36px;margin:15px 0}
+#clicks{font-size:34px;margin:14px 0}
 #timer{opacity:.8}
 #msg{min-height:24px;margin-top:10px}
 
 .admin{display:none;margin-top:10px;border-top:1px solid #555;padding-top:10px}
 
-#boss{
+#rules{
   display:none;
   position:fixed;
   inset:0;
   background:black;
-  z-index:5;
-  color:#00ff88;
-  text-align:center;
-  padding-top:20vh;
+  color:var(--green);
+  z-index:10;
+  padding:40px;
+  font-family:monospace;
 }
 
+#rules button{
+  margin-top:20px;
+}
+
+#mobileToggle{
+  position:fixed;
+  right:10px;
+  bottom:10px;
+  background:#111;
+  color:var(--green);
+  padding:10px;
+  border-radius:12px;
+  font-size:14px;
+  cursor:pointer;
+  z-index:5;
+}
+
+.mobile button{font-size:20px;padding:20px}
+
 #matrix{position:fixed;inset:0;z-index:0}
+.hiddenClick{
+  position:fixed;
+  background:var(--green);
+  color:black;
+  padding:10px;
+  border-radius:8px;
+  z-index:3;
+}
 </style>
 </head>
 
@@ -90,65 +116,95 @@ button:hover{transform:scale(1.05)}
     <div id="clicks">0 clics</div>
 
     <button id="clickBtn">CLIQUER</button>
-    <button onclick="startBlitz()">⚡ Blitz (1 min)</button>
+    <button onclick="showRules('blitz')">⚡ Blitz</button>
+    <button onclick="showRules('hardcore')">😈 Hardcore</button>
 
     <div id="msg"></div>
 
-    <input id="codeInput" placeholder="Code secret">
+    <input id="codeInput" placeholder="Code admin">
     <button onclick="useCode()">OK</button>
 
     <div class="admin" id="adminPanel">
-      <b>ADMIN</b>
-      <button onclick="toggleAutoClick()">🤖 Auto-clicker</button>
-      <button onclick="toggleX100()">💥 1 clic = 100</button>
+      <button onclick="toggleAuto()">🤖 Auto-click</button>
+      <button onclick="toggleX100()">💥 x100</button>
     </div>
 
   </div>
 </div>
 
-<!-- BOSS -->
-<div id="boss">
-  <h1 id="bossTitle">LE MATRIXEUR</h1>
-  <p id="bossText">Clique pour l'attaquer</p>
-  <button onclick="attackBoss()">ATTAQUER</button>
+<div id="rules">
+  <div id="rulesText"></div>
+  <button onclick="startMode()">COMMENCER</button>
 </div>
 
-<script>
-// ================= ETAT =================
-let clicks=0,time=0;
-let blitz=false,blitzScore=0,savedClicks=0;
-let autoClick=false,x100=false;
-let bossPhase=0,bossHP=0;
+<div id="mobileToggle" onclick="toggleMobile()">📱 JE SUIS MOBILE</div>
 
-// ================= TIMER =================
+<script>
+// ====== ETAT ======
+let clicks=0,time=0;
+let blitz=false,blitzScore=0,baseClicks=0;
+let hardcore=false,hardcoreTime=300;
+let auto=false,x100=false;
+let pendingMode=null;
+
+// ====== TIMER ======
 setInterval(()=>{
   time++;
-  if(!blitz) timer.innerText="⏱️ Temps : "+time+"s";
+  timer.innerText="⏱️ Temps : "+time+"s";
+  if(hardcore){
+    hardcoreTime--;
+    if(hardcoreTime<=0){
+      hardcore=false;
+      msg.innerText="😈 Hardcore terminé";
+    }
+  }
 },1000);
 
-// ================= CLICK =================
+// ====== CLICK ======
 clickBtn.onclick=()=>{
+  if(hardcore && Math.random()<0.4){
+    spawnHiddenClick();
+    clickBtn.innerText="RESET";
+    clickBtn.onclick=()=>location.reload();
+    return;
+  }
+
   let gain=x100?100:1;
 
   if(blitz){
     blitzScore+=gain;
-    clicksEl.innerText=blitzScore+" clics (BLITZ)";
+    clicksEl.innerText=blitzScore+" (BLITZ)";
   }else{
     clicks+=gain;
     clicksEl.innerText=clicks+" clics";
-    checkBoss();
   }
 };
 
-// ================= BLITZ (FIX) =================
+const clicksEl=document.getElementById("clicks");
+
+// ====== RULES ======
+function showRules(mode){
+  pendingMode=mode;
+  rules.style.display="block";
+  rulesText.innerText=
+    mode==="blitz"
+    ? "MODE BLITZ\n\n1 minute\nScore séparé\nRetour au score initial après"
+    : "MODE HARDCORE\n\n5 minutes\n40% reset\nBouton caché à retrouver";
+}
+
+function startMode(){
+  rules.style.display="none";
+  if(pendingMode==="blitz") startBlitz();
+  if(pendingMode==="hardcore") startHardcore();
+}
+
+// ====== BLITZ ======
 function startBlitz(){
-  if(blitz) return;
   blitz=true;
-  savedClicks=clicks;
+  baseClicks=clicks;
   blitzScore=0;
   let t=60;
-  clicksEl.innerText="0 clics (BLITZ)";
-  msg.innerText="⚡ BLITZ EN COURS";
+  clicksEl.innerText="0 (BLITZ)";
 
   const i=setInterval(()=>{
     t--;
@@ -156,74 +212,65 @@ function startBlitz(){
     if(t<=0){
       clearInterval(i);
       blitz=false;
-      clicks=savedClicks;
-      clicksEl.innerText=clicks+" clics";
-      msg.innerText="⚡ Blitz terminé : "+blitzScore;
+      msg.innerText="⚡ Score Blitz : "+blitzScore;
+      setTimeout(()=>{
+        clicks=baseClicks;
+        clicksEl.innerText=clicks+" clics";
+      },2000);
     }
   },1000);
 }
 
-// ================= ADMIN =================
+// ====== HARDCORE ======
+function startHardcore(){
+  hardcore=true;
+  hardcoreTime=300;
+  msg.innerText="😈 HARDCORE ACTIVÉ";
+}
+
+// ====== ADMIN ======
 function useCode(){
   if(codeInput.value==="516962"){
     adminPanel.style.display="block";
-    msg.innerText="🛠️ Admin activé";
-  }else msg.innerText="❌ Code invalide";
+    msg.innerText="🛠️ ADMIN";
+  }
 }
 
-function toggleAutoClick(){
-  autoClick=!autoClick;
-  if(autoClick) setInterval(()=>clickBtn.click(),40);
+function toggleAuto(){
+  auto=!auto;
+  if(auto) setInterval(()=>clickBtn.click(),50);
 }
 
 function toggleX100(){x100=!x100}
 
-// ================= BOSS =================
-function checkBoss(){
-  if(clicks>=10_000_000 && bossPhase===0){
-    bossPhase=1;
-    bossHP=10000;
-    boss.style.display="block";
-    bossText.innerText="PHASE 1 : "+bossHP+" clics";
-  }
+// ====== HIDDEN CLICK ======
+function spawnHiddenClick(){
+  const b=document.createElement("button");
+  b.className="hiddenClick";
+  b.style.left=Math.random()*90+"%";
+  b.style.top=Math.random()*90+"%";
+  b.innerText="CLIQUER";
+  b.onclick=()=>{
+    b.remove();
+    clickBtn.innerText="CLIQUER";
+    clickBtn.onclick=()=>clickBtn.click();
+  };
+  document.body.appendChild(b);
 }
 
-function attackBoss(){
-  if(clicks<=0) return;
-  clicks--;
-  bossHP--;
-  clicksEl.innerText=clicks+" clics";
-  bossText.innerText="HP : "+bossHP;
-
-  if(bossHP<=0){
-    if(bossPhase===1){
-      bossPhase=2;
-      bossHP=30000;
-      bossTitle.innerText="LE MATRIXEUR ULTIME";
-      bossText.innerText="PHASE 2 : "+bossHP;
-    }else endGame();
-  }
+// ====== MOBILE ======
+function toggleMobile(){
+  document.body.classList.toggle("mobile");
 }
 
-// ================= FIN =================
-function endGame(){
-  boss.innerHTML=`
-    <h1>VOUS AVEZ BRISÉ LA MATRICE</h1>
-    <p>Merci d'avoir joué.</p>
-    <a href="#" style="color:#00ff88">➡ Prochain jeu</a>
-  `;
-}
-
-// ================= MATRIX =================
+// ====== MATRIX ======
 const canvas=matrix,ctx=canvas.getContext("2d");
 function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
 resize();addEventListener("resize",resize);
-
 const chars="01ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%";
 const size=16;
 let cols=Math.floor(canvas.width/size);
 let drops=Array(cols).fill(1);
-
 setInterval(()=>{
   ctx.fillStyle="rgba(0,0,0,.05)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
